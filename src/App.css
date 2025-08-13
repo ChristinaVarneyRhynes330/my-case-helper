@@ -6,14 +6,12 @@
   --font-body: 'Open Sans', Arial, sans-serif;
 }
 
-/* --- Background & Body --- */
 body {
   font-family: var(--font-body);
   background: linear-gradient(135deg, var(--cream) 60%, #fff 100%);
   min-height: 100vh;
 }
 
-/* --- Header --- */
 .header {
   display: flex;
   align-items: center;
@@ -52,7 +50,6 @@ body {
   font-weight: 400;
 }
 
-/* --- Dark Mode Toggle --- */
 .darkmode-toggle {
   background: var(--rust);
   color: var(--cream);
@@ -69,7 +66,6 @@ body {
   background: var(--navy);
 }
 
-/* --- Quick Questions --- */
 .quick-questions {
   display: flex;
   flex-wrap: wrap;
@@ -96,7 +92,6 @@ body {
   transform: scale(1.07);
 }
 
-/* --- Main Layout --- */
 .main {
   display: flex;
   gap: 2rem;
@@ -106,7 +101,6 @@ body {
   min-height: 60vh;
 }
 
-/* --- Sidebar --- */
 .sidebar {
   flex: 0 0 250px;
   background: #fff;
@@ -132,7 +126,6 @@ body {
   }
 }
 
-/* --- Chat Container --- */
 .chat-container {
   flex: 1;
   background: var(--cream);
@@ -145,7 +138,6 @@ body {
   min-height: 400px;
 }
 
-/* --- Export Button --- */
 .export-btn {
   align-self: flex-end;
   background: var(--navy);
@@ -160,7 +152,6 @@ body {
 }
 .export-btn:hover { background: var(--rust); }
 
-/* --- Messages --- */
 .messages {
   flex: 1;
   overflow-y: auto;
@@ -210,7 +201,6 @@ body {
   white-space: pre-wrap;
 }
 
-/* --- Input Area --- */
 .input-area {
   display: flex;
   align-items: center;
@@ -255,7 +245,6 @@ body {
   cursor: not-allowed;
 }
 
-/* --- Attach Evidence Button --- */
 .attach-btn {
   background: var(--rust);
   color: var(--cream);
@@ -271,7 +260,6 @@ body {
   background: var(--navy);
 }
 
-/* --- Disclaimer --- */
 .disclaimer {
   background: #fff8f3;
   border: 1px solid var(--rust);
@@ -284,7 +272,6 @@ body {
   border-radius: 12px;
 }
 
-/* --- Scrollbar --- */
 .messages::-webkit-scrollbar {
   width: 6px;
 }
@@ -296,7 +283,6 @@ body {
   border-radius: 3px;
 }
 
-/* --- Mobile --- */
 @media (max-width: 600px) {
   .header { flex-direction: column; text-align: center; }
   .logo { margin-bottom: 1rem; }

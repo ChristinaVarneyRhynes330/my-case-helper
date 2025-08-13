@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { jsPDF } from "jspdf";
 import './App.css';
 
 // Import logo (save your logo as src/logo.png)
@@ -20,7 +21,7 @@ function App() {
   // Dark mode state
   const [darkMode, setDarkMode] = useState(false);
 
-  // Load saved messages from localStorage
+  // Chat
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem('case-conversations');
     return saved ? JSON.parse(saved) : [
@@ -33,13 +34,33 @@ function App() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Evidence (file) upload
+  // Timeline tracker
+  const [timeline, setTimeline] = useState(() => {
+    const saved = localStorage.getItem('case-timeline');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [newDate, setNewDate] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+
+  // Evidence upload
   const [evidence, setEvidence] = useState(null);
 
-  // Save messages to localStorage when they change
+  // User profile
+  const [profile, setProfile] = useState(() => {
+    const saved = localStorage.getItem('case-profile');
+    return saved ? JSON.parse(saved) : {name:'', case:'', attorney:''};
+  });
+
+  // Save messages/timeline/profile to localStorage
   useEffect(() => {
     localStorage.setItem('case-conversations', JSON.stringify(messages));
   }, [messages]);
+  useEffect(() => {
+    localStorage.setItem('case-timeline', JSON.stringify(timeline));
+  }, [timeline]);
+  useEffect(() => {
+    localStorage.setItem('case-profile', JSON.stringify(profile));
+  }, [profile]);
 
   // Dark mode effect
   useEffect(() => {
@@ -50,6 +71,7 @@ function App() {
     }
   }, [darkMode]);
 
+  // Chat send
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
@@ -61,7 +83,6 @@ function App() {
 
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-      
       const prompt = `
 You are a knowledgeable assistant helping with a Florida juvenile dependency case.
 
@@ -78,20 +99,16 @@ KEY GUIDELINES:
 User's question about their case: ${userMessage}
 
 Provide helpful, specific information:`;
-      
       const result = await model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
-      
       setMessages(prev => [...prev, { role: 'assistant', text: text }]);
-      
     } catch (error) {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         text: 'Sorry, I had trouble processing that. Please try again.' 
       }]);
     }
-    
     setLoading(false);
   };
 
@@ -105,6 +122,57 @@ Provide helpful, specific information:`;
     a.download = 'chat-history.txt';
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  // Export chat history as PDF
+  const exportChatPDF = () => {
+    const doc = new jsPDF();
+    doc.setFont("times", "normal");
+    doc.setFontSize(14);
+
+    // Title
+    doc.text("We The Parent Case Helper - Chat History", 10, 15);
+
+    // Profile
+    doc.setFontSize(11);
+    doc.text(`Name: ${profile.name || ""}`, 10, 25);
+    doc.text(`Case #: ${profile.case || ""}`, 10, 32);
+    doc.text(`Attorney: ${profile.attorney || ""}`, 10, 39);
+
+    // Timeline
+    let y = 46;
+    if (timeline.length > 0) {
+      doc.setFontSize(12);
+      doc.text("Timeline:", 10, y);
+      y += 6;
+      doc.setFontSize(11);
+      timeline.forEach(item => {
+        doc.text(`- ${item.date}: ${item.desc}`, 12, y);
+        y += 6;
+      });
+    }
+
+    // Chat
+    y += 4;
+    doc.setFontSize(12);
+    doc.text("Chat:", 10, y);
+    y += 8;
+    doc.setFontSize(11);
+    messages.forEach(m => {
+      let role = m.role === "user" ? "You:" : "Assistant:";
+      let textLines = doc.splitTextToSize(m.text, 180);
+      textLines.forEach(line => {
+        doc.text(`${role} ${line}`, 10, y);
+        y += 6;
+        if (y > 280) {
+          doc.addPage();
+          y = 15;
+        }
+      });
+      y += 2;
+    });
+
+    doc.save("chat-history.pdf");
   };
 
   // Evidence file handler
@@ -137,10 +205,41 @@ Provide helpful, specific information:`;
       <div className="main">
         {/* Sidebar: Timeline, Evidence, Profile */}
         <div className="sidebar">
+          {/* Timeline Tracker */}
           <div>
             <strong style={{color: 'var(--navy)', fontFamily: 'var(--font-heading)'}}>Timeline Tracker</strong>
-            <div style={{marginTop: '0.5rem', color: 'var(--rust)'}}>Coming soon: Add your hearings & deadlines!</div>
+            <form
+              style={{marginTop: '0.5rem'}}
+              onSubmit={e => {
+                e.preventDefault();
+                if (!newDate || !newDesc) return;
+                const updated = [...timeline, {date: newDate, desc: newDesc}];
+                setTimeline(updated);
+                setNewDate('');
+                setNewDesc('');
+              }}>
+              <input
+                type="date"
+                value={newDate}
+                onChange={e => setNewDate(e.target.value)}
+                style={{marginRight: '0.5rem'}}
+              />
+              <input
+                type="text"
+                value={newDesc}
+                onChange={e => setNewDesc(e.target.value)}
+                placeholder="Description"
+                style={{marginRight: '0.5rem'}}
+              />
+              <button type="submit" className="attach-btn">Add</button>
+            </form>
+            <ul style={{marginTop:'0.5rem', paddingLeft:'1rem', color:'var(--navy)'}}>
+              {timeline.map((item, i) => (
+                <li key={i}>{item.date}: {item.desc}</li>
+              ))}
+            </ul>
           </div>
+          {/* Evidence Upload */}
           <div>
             <strong style={{color: 'var(--navy)', fontFamily: 'var(--font-heading)'}}>Evidence Upload</strong>
             <input
@@ -149,20 +248,72 @@ Provide helpful, specific information:`;
               className="attach-btn"
               onChange={handleEvidence}
               style={{marginTop: '0.5rem'}}
-              />
-            {evidence && <div style={{marginTop: '0.3rem', color: 'var(--rust)'}}>File: {evidence.name}</div>}
+            />
+            {evidence && (
+              <div style={{marginTop: '0.3rem', color: 'var(--rust)'}}>
+                File: {evidence.name}
+                {evidence.type && evidence.type.startsWith('image/') && (
+                  <img
+                    src={URL.createObjectURL(evidence)}
+                    alt="preview"
+                    style={{maxWidth:'100%', maxHeight:'80px', display:'block', marginTop:'0.5rem'}}
+                  />
+                )}
+              </div>
+            )}
           </div>
+          {/* User Profile */}
           <div>
             <strong style={{color: 'var(--navy)', fontFamily: 'var(--font-heading)'}}>User Profile</strong>
-            <div style={{marginTop: '0.5rem', color: 'var(--rust)'}}>Coming soon: Save your info</div>
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                localStorage.setItem('case-profile', JSON.stringify(profile));
+                alert('Profile saved!');
+              }}
+              style={{marginTop:'0.5rem'}}
+            >
+              <input
+                type="text"
+                value={profile.name}
+                placeholder="Your Name"
+                onChange={e => setProfile({...profile, name: e.target.value})}
+                style={{marginRight:'0.5rem', marginBottom:'0.3rem'}}
+              />
+              <input
+                type="text"
+                value={profile.case}
+                placeholder="Case Number"
+                onChange={e => setProfile({...profile, case: e.target.value})}
+                style={{marginRight:'0.5rem', marginBottom:'0.3rem'}}
+              />
+              <input
+                type="text"
+                value={profile.attorney}
+                placeholder="Attorney"
+                onChange={e => setProfile({...profile, attorney: e.target.value})}
+                style={{marginRight:'0.5rem', marginBottom:'0.3rem'}}
+              />
+              <button type="submit" className="attach-btn">Save</button>
+            </form>
+            <div style={{marginTop:'0.5rem', color:'var(--navy)'}}>
+              <strong>Saved:</strong><br/>
+              Name: {profile.name}<br/>
+              Case #: {profile.case}<br/>
+              Attorney: {profile.attorney}
+            </div>
           </div>
         </div>
-
         {/* Chat Container */}
         <div className="chat-container">
-          <button className="export-btn" onClick={exportChat}>
-            Export Chat History
-          </button>
+          <div style={{display: 'flex', gap: '1rem', justifyContent: 'flex-end'}}>
+            <button className="export-btn" onClick={exportChat}>
+              Export Chat (Text)
+            </button>
+            <button className="export-btn" onClick={exportChatPDF}>
+              Export Chat (PDF)
+            </button>
+          </div>
           <div className="messages">
             {messages.map((message, index) => (
               <div key={index} className={`message ${message.role}`}>
@@ -199,7 +350,6 @@ Provide helpful, specific information:`;
           </div>
         </div>
       </div>
-
       {/* --- Disclaimer --- */}
       <footer className="disclaimer">
         <p><strong>Important:</strong> This provides information, not legal advice. Always consult with your attorney for legal guidance specific to your case.</p>

@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import './App.css';
+
+// Import logo (save your logo as src/logo.png)
+import logo from './logo.png';
 
 // Your Google AI API key
 const genAI = new GoogleGenerativeAI('AIzaSyCeaZPNbobYF6TUL20q0K9IfEb35a06cdA');
@@ -14,23 +17,38 @@ const quickQuestions = [
 ];
 
 function App() {
+  // Dark mode state
+  const [darkMode, setDarkMode] = useState(false);
+
   // Load saved messages from localStorage
   const [messages, setMessages] = useState(() => {
     const saved = localStorage.getItem('case-conversations');
     return saved ? JSON.parse(saved) : [
       { 
         role: 'assistant', 
-        text: "Hi! I'm your personal Florida dependency case assistant. I can help you understand procedures, deadlines, your rights, and what to expect. What questions do you have about your case?" 
+        text: "Hi! I'm your personal Florida dependency case assistant. How can I help you today?" 
       }
     ];
   });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // Evidence (file) upload
+  const [evidence, setEvidence] = useState(null);
+
   // Save messages to localStorage when they change
   useEffect(() => {
     localStorage.setItem('case-conversations', JSON.stringify(messages));
   }, [messages]);
+
+  // Dark mode effect
+  useEffect(() => {
+    if (darkMode) {
+      document.body.style.background = 'linear-gradient(135deg, #223447 60%, #C97D60 100%)';
+    } else {
+      document.body.style.background = 'linear-gradient(135deg, #F7EFE8 60%, #fff 100%)';
+    }
+  }, [darkMode]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -44,7 +62,8 @@ function App() {
     try {
       const model = genAI.getGenerativeModel({ model: "gemini-pro" });
       
-      const prompt = `You are a knowledgeable assistant helping with a Florida juvenile dependency case.
+      const prompt = `
+You are a knowledgeable assistant helping with a Florida juvenile dependency case.
 
 CONTEXT: This is for a parent navigating their own dependency case in Florida family court.
 
@@ -76,57 +95,112 @@ Provide helpful, specific information:`;
     setLoading(false);
   };
 
+  // Export chat history as text
+  const exportChat = () => {
+    const chatText = messages.map(m => (m.role === 'user' ? 'You: ' : 'Assistant: ') + m.text).join('\n\n');
+    const blob = new Blob([chatText], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'chat-history.txt';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Evidence file handler
+  const handleEvidence = (e) => {
+    setEvidence(e.target.files[0]);
+  };
+
   return (
-    <div className="App">
+    <div className={darkMode ? "App dark" : "App"}>
+      {/* --- Header --- */}
       <header className="header">
-        <h1>My Dependency Case Helper</h1>
-        <p>Personal AI assistant for your Florida case</p>
+        <img src={logo} className="logo" alt="We The Parent Logo" />
+        <div className="header-content">
+          <div className="header-title">We The Parent Case Helper</div>
+          <div className="header-tagline">One Voice. One Fight. One Family.</div>
+        </div>
+        <button className="darkmode-toggle" onClick={() => setDarkMode(!darkMode)}>
+          {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+        </button>
       </header>
 
-      <div className="chat-container">
-        {/* Quick Question Buttons */}
-        <div className="quick-questions">
-          {quickQuestions.map((q, i) => (
-            <button key={i} onClick={() => setInput(q)}>{q}</button>
-          ))}
+      {/* --- Quick Questions --- */}
+      <div className="quick-questions">
+        {quickQuestions.map((q, i) => (
+          <button key={i} onClick={() => setInput(q)}>{q}</button>
+        ))}
+      </div>
+
+      {/* --- Main Layout --- */}
+      <div className="main">
+        {/* Sidebar: Timeline, Evidence, Profile */}
+        <div className="sidebar">
+          <div>
+            <strong style={{color: 'var(--navy)', fontFamily: 'var(--font-heading)'}}>Timeline Tracker</strong>
+            <div style={{marginTop: '0.5rem', color: 'var(--rust)'}}>Coming soon: Add your hearings & deadlines!</div>
+          </div>
+          <div>
+            <strong style={{color: 'var(--navy)', fontFamily: 'var(--font-heading)'}}>Evidence Upload</strong>
+            <input
+              type="file"
+              id="evidence"
+              className="attach-btn"
+              onChange={handleEvidence}
+              style={{marginTop: '0.5rem'}}
+              />
+            {evidence && <div style={{marginTop: '0.3rem', color: 'var(--rust)'}}>File: {evidence.name}</div>}
+          </div>
+          <div>
+            <strong style={{color: 'var(--navy)', fontFamily: 'var(--font-heading)'}}>User Profile</strong>
+            <div style={{marginTop: '0.5rem', color: 'var(--rust)'}}>Coming soon: Save your info</div>
+          </div>
         </div>
-        <div className="messages">
-          {messages.map((message, index) => (
-            <div key={index} className={`message ${message.role}`}>
-              <div className="message-content">
-                <strong>{message.role === 'user' ? 'You:' : '🤖 Assistant:'}</strong>
-                <div className="message-text">{message.text}</div>
-              </div>
-            </div>
-          ))}
-          {loading && (
-            <div className="message assistant">
-              <div className="message-content">
-                <strong>🤖 Assistant:</strong>
-                <div className="message-text">Thinking about your question...</div>
-              </div>
-            </div>
-          )}
-        </div>
-        
-        <div className="input-area">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about deadlines, procedures, your rights, what to expect..."
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-          />
-          <button onClick={sendMessage} disabled={loading || !input.trim()}>
-            Send
+
+        {/* Chat Container */}
+        <div className="chat-container">
+          <button className="export-btn" onClick={exportChat}>
+            Export Chat History
           </button>
+          <div className="messages">
+            {messages.map((message, index) => (
+              <div key={index} className={`message ${message.role}`}>
+                <div className="message-content">
+                  <strong>{message.role === 'user' ? 'You:' : '🤖 Assistant:'}</strong>
+                  <div className="message-text">{message.text}</div>
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="message assistant">
+                <div className="message-content">
+                  <strong>🤖 Assistant:</strong>
+                  <div className="message-text">Thinking about your question...</div>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="input-area">
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about deadlines, procedures, your rights, what to expect..."
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+            />
+            <button onClick={sendMessage} disabled={loading || !input.trim()}>
+              Send
+            </button>
+          </div>
         </div>
       </div>
 
+      {/* --- Disclaimer --- */}
       <footer className="disclaimer">
         <p><strong>Important:</strong> This provides information, not legal advice. Always consult with your attorney for legal guidance specific to your case.</p>
       </footer>

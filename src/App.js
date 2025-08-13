@@ -1,19 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import './App.css';
 
-// Put your Google AI API key here
+// Your Google AI API key
 const genAI = new GoogleGenerativeAI('AIzaSyCeaZPNbobYF6TUL20q0K9IfEb35a06cdA');
 
+// Quick question presets
+const quickQuestions = [
+  "What happens at my next hearing?",
+  "What are my parental rights?",
+  "How do I complete my case plan?",
+  "What if I can't attend court?"
+];
+
 function App() {
-  const [messages, setMessages] = useState([
-    { 
-      role: 'assistant', 
-      text: 'Hi! I\'m your personal Florida dependency case assistant. I can help you understand procedures, deadlines, your rights, and what to expect. What questions do you have about your case?' 
-    }
-  ]);
+  // Load saved messages from localStorage
+  const [messages, setMessages] = useState(() => {
+    const saved = localStorage.getItem('case-conversations');
+    return saved ? JSON.parse(saved) : [
+      { 
+        role: 'assistant', 
+        text: "Hi! I'm your personal Florida dependency case assistant. I can help you understand procedures, deadlines, your rights, and what to expect. What questions do you have about your case?" 
+      }
+    ];
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Save messages to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('case-conversations', JSON.stringify(messages));
+  }, [messages]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -67,6 +84,12 @@ Provide helpful, specific information:`;
       </header>
 
       <div className="chat-container">
+        {/* Quick Question Buttons */}
+        <div className="quick-questions">
+          {quickQuestions.map((q, i) => (
+            <button key={i} onClick={() => setInput(q)}>{q}</button>
+          ))}
+        </div>
         <div className="messages">
           {messages.map((message, index) => (
             <div key={index} className={`message ${message.role}`}>
@@ -112,36 +135,3 @@ Provide helpful, specific information:`;
 }
 
 export default App;
-import React, { useState, useEffect } from 'react'; // Add useEffect
-
-// ... rest of your imports and code ...
-
-function App() {
-  // Load saved messages from localStorage
-  const [messages, setMessages] = useState(() => {
-    const saved = localStorage.getItem('case-conversations');
-    return saved ? JSON.parse(saved) : [
-      { role: 'assistant', text: "Hi! I'm your personal Florida dependency case assistant. ..." }
-    ];
-  });
-
-  // Save messages to localStorage when they change
-  useEffect(() => {
-    localStorage.setItem('case-conversations', JSON.stringify(messages));
-  }, [messages]);
-
-  // ...rest of your component code...
-}
-const quickQuestions = [
-  "What happens at my next hearing?",
-  "What are my parental rights?",
-  "How do I complete my case plan?",
-  "What if I can't attend court?"
-];
-
-{/* Add this to your return() JSX above the textarea */}
-<div className="quick-questions">
-  {quickQuestions.map((q, i) => (
-    <button key={i} onClick={() => setInput(q)}>{q}</button>
-  ))}
-</div>
